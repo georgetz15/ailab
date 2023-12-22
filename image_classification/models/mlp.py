@@ -17,7 +17,7 @@ class MLPClassifier(pl.LightningModule):
                  opt="AdamW",
                  lr=1e-2,
                  wd=1e-2, ):
-        assert len(n_features) > 1
+        assert len(n_features) >= 1
         assert n_classes > 0
         assert 0 <= dropout <= 1
         assert lr > 0
@@ -82,6 +82,8 @@ class MLPClassifier(pl.LightningModule):
         accuracy = (preds.argmax(-1) == y).float().mean().item()
         self.log_dict({"loss/val": loss}, on_step=False, on_epoch=True)
         self.log_dict({"accuracy/val": accuracy}, on_step=False, on_epoch=True)
+        self.log("hp_metric", accuracy, on_step=False, on_epoch=True)
+
         return loss
 
     def on_train_epoch_start(self):

@@ -66,6 +66,8 @@ class ResNetClassifier(pl.LightningModule):
         accuracy = (preds.argmax(-1) == y).float().mean().item()
         self.log_dict({"loss/val": loss}, on_step=False, on_epoch=True)
         self.log_dict({"accuracy/val": accuracy}, on_step=False, on_epoch=True)
+        self.log("hp_metric", accuracy, on_step=False, on_epoch=True)
+
         return loss
 
     def on_train_epoch_start(self):
