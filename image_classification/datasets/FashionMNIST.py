@@ -1,5 +1,6 @@
-from typing import Tuple
-
+import os
+from typing import Tuple, Optional
+import logging
 import torch
 from torch.utils.data import SubsetRandomSampler
 from torchvision import transforms
@@ -7,6 +8,7 @@ from torchvision.datasets import FashionMNIST
 from torch.utils.data import Dataset
 
 from transforms.image import RandomPatch
+import lightning.pytorch as L
 
 
 def get_default_transforms():
@@ -101,3 +103,85 @@ def get_dataloaders(train_dataset=None, valid_dataset=None, test_dataset=None, s
                                               **kwargs)
 
     return train_loader, valid_loader, test_loader
+
+
+class FashionMNISTDataModule(L.LightningDataModule):
+    def __init__(self, data_dir: str = "./", train_split: float = 0.8, seed: int = 42, batch_sz: int = 64,
+                 num_workers: Optional[int] = None):
+        super().__init__()
+        self.data_dir = data_dir
+        self.train_transform, self.valid_transform, self.test_transform = get_default_transforms()
+        self.__train_split = train_split
+        self.__seed = seed
+        self.__batch_sz = batch_sz
+        self.__num_workers = num_workers or os.cpu_count() or 0
+        logging.info(f"Using {self.__num_workers} workers.")
+
+    def prepare_data(self):
+        # download
+        FashionMNIST(self.data_dir, train=True, download=True)
+        FashionMNIST(self.data_dir, train=False, download=True)
+
+    def setup(self, stage: str):
+        # Assign train/val datasets for use in dataloaders
+        if stage == "fit":
+            mnist_full = FashionMNIST(self.data_dir, train=True)
+            from torch.utils.data import random_split
+            train_ix, val_ix = random_split(
+                range(len(mnist_full)), [self.__train_split, 1 - self.__train_split],
+                generator=torch.Generator().manual_seed(self.__seed)
+            )
+            self.mnist_train = torch.utils.data.Subset(FashionMNIST(
+                self.data_dir,
+                download=True,
+                train=True,
+                transform=self.train_transform), train_ix)
+            self.mnist_val = torch.utils.data.Subset(FashionMNIST(
+                self.data_dir,
+                download=True,
+                train=True,
+                transform=self.valid_transform), val_ix)
+
+            # Assign test dataset for use in dataloader(s)
+            if stage == "test":
+                self.mnist_test = FashionMNIST(self.data_dir, train=False, transform=self.test_transform)
+
+            if stage == "predict":
+                self.mnist_predict = FashionMNIST(self.data_dir, train=False, transform=self.test_transform)
+
+    def train_dataloader(self):
+        return torch.utils.data.DataLoader(self.mnist_train,
+                                           batch_size=self.__batch_sz,
+                                           shuffle=True,
+                                           num_workers=self.__num_workers,
+                                           pin_memory=True,
+                                           persistent_workers=self.__num_workers > 0,
+                                           drop_last=True)
+
+    def val_dataloader(self):
+        return torch.utils.data.DataLoader(self.mnist_val,
+                                           batch_size=self.__batch_sz,
+                                           num_workers=self.__num_workers,
+                                           pin_memory=True,
+                                           persistent_workers=self.__num_workers > 0)
+
+    def test_dataloader(self):
+        return torch.utils.data.DataLoader(self.mnist_test, batch_size=self.__batch_sz,
+                                           num_workers=self.__num_workers,
+                                           pin_memory=True,
+                                           persistent_workers=self.__num_workers > 0)
+
+    def predict_dataloader(self):
+        return torch.utils.data.DataLoader(self.mnist_predict,
+                                           batch_size=self.__batch_sz,
+                                           num_workers=self.__num_workers,
+                                           pin_memory=True,
+                                           persistent_workers=self.__num_workers > 0)
+
+    @property
+    def n_classes(self):
+        return 10
+
+    @property
+    def dataset_name(self):
+        return 'FashionMNIST'
