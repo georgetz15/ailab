@@ -33,7 +33,8 @@ def get_default_transforms():
 
     test_transforms = transforms.Compose([
         transforms.ToTensor(),
-        normalize])
+        normalize
+    ])
 
     return train_transforms, valid_transforms, test_transforms
 

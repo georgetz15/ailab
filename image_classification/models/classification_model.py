@@ -9,40 +9,24 @@ from layers import ResNetBlock
 import lightning as pl
 
 
-def get_resnet(act=nn.LeakyReLU,
-               n_features=(8, 16, 32, 64, 128, 256),
-               n_classes=10,
-               norm=nn.BatchNorm2d,
-               dropout_rate=0.5):
-    layers = [ResNetBlock(1, n_features[0], stride=1, activation=act, norm=norm), ]
-    layers += [ResNetBlock(n_features[i], n_features[i + 1], stride=2, norm=norm, activation=act)
-               for i in range(len(n_features) - 1)]
-    layers += [nn.Flatten(), nn.Dropout(p=dropout_rate, inplace=True), nn.Linear(n_features[-1], n_classes, bias=False),
-               nn.BatchNorm1d(n_classes)]
-    return nn.Sequential(*layers)
-
-
-class ResNetClassifier(pl.LightningModule):
+class ClassificationModel(pl.LightningModule):
     def __init__(self,
-                 n_classes,
-                 n_features=(8, 16, 32, 64, 128, 256),
-                 dropout=0.5,
                  opt="AdamW",
                  lr=1e-2,
                  wd=1e-2, ):
         super().__init__()
-        self.classifier = get_resnet(nn.LeakyReLU, n_features, n_classes, nn.BatchNorm2d, dropout, )
+        # self.classifier = get_resnet(nn.LeakyReLU, n_features, n_classes, nn.BatchNorm2d, dropout, )
 
-        self.save_hyperparameters()
+        # self.save_hyperparameters()
+        #
+        # self._activations_hook = KeepActivations()
+        # self.__handles = []
 
-        self._activations_hook = KeepActivations()
-        self.__handles = []
-
-    def forward(self, x):
-        return self.classifier(x)
+    # def forward(self, x):
+    #     return self.classifier(x)
 
     def training_step(self, batch, batch_idx):
-        self._activations_hook.reset()
+        # self._activations_hook.reset()
 
         x, y = batch
 
@@ -118,11 +102,12 @@ class ResNetClassifier(pl.LightningModule):
 
         tb.add_custom_scalars(layout)
 
-        for m in self.classifier.modules():
-            if isinstance(m, (ResNetBlock, nn.Linear)):
-                handle = m.register_forward_hook(self._activations_hook.forward_hook)
-                self.__handles.append(handle)
+        # for m in self.classifier.modules():
+        #     if isinstance(m, (ResNetBlock, nn.Linear)):
+        #         handle = m.register_forward_hook(self._activations_hook.forward_hook)
+        #         self.__handles.append(handle)
 
     def on_fit_end(self) -> None:
-        while self.__handles:
-            self.__handles.pop().remove()
+        pass
+        # while self.__handles:
+        #     self.__handles.pop().remove()
