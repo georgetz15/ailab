@@ -11,19 +11,19 @@ import lightning as pl
 
 class ClassificationModel(pl.LightningModule):
     def __init__(self,
+                 model: nn.Module,
+                 n_classes: int,
                  opt="AdamW",
                  lr=1e-2,
-                 wd=1e-2, ):
+                 wd=1e-5, ):
         super().__init__()
-        # self.classifier = get_resnet(nn.LeakyReLU, n_features, n_classes, nn.BatchNorm2d, dropout, )
+        self.classifier = model
 
-        # self.save_hyperparameters()
-        #
-        # self._activations_hook = KeepActivations()
-        # self.__handles = []
+        self.save_hyperparameters()
+        self._n_classes = n_classes
 
-    # def forward(self, x):
-    #     return self.classifier(x)
+    def forward(self, x):
+        return self.classifier(x)
 
     def training_step(self, batch, batch_idx):
         # self._activations_hook.reset()
@@ -31,12 +31,14 @@ class ClassificationModel(pl.LightningModule):
         x, y = batch
 
         preds = self.forward(x)
+        if preds.shape[-1] != self._n_classes:
+            raise ValueError(f"preds.shape[-1]={preds.shape[-1]} should be equal to the number of classes {self._n_classes}")
         loss = nn.functional.cross_entropy(preds, y)
 
         accuracy = (preds.argmax(-1) == y).float().mean().item()
 
-        for i, act in enumerate(self._activations_hook.activations):
-            self.logger.experiment.add_histogram(f'feature_activations/{i}', act, self.global_step)
+        # for i, act in enumerate(self._activations_hook.activations):
+        #     self.logger.experiment.add_histogram(f'feature_activations/{i}', act, self.global_step)
 
         self.log_dict({"loss/train": loss}, on_step=False, on_epoch=True)
         self.log_dict({"accuracy/train": accuracy}, on_step=False, on_epoch=True)
