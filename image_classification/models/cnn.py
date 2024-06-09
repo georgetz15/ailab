@@ -2,74 +2,16 @@ import torch
 import torch.nn as nn
 from typing import Tuple, Optional
 
+from layers.convs import conv3x3, sepconv3x3
 from weight_init import generic_init
-
-
-def conv3x3(in_channels: int,
-            out_channels: int,
-            stride: int = 1,
-            groups: int = 1,
-            dilation: int = 1,
-            bias=False,
-            **kwargs) -> nn.Conv2d:
-    return nn.Conv2d(in_channels,
-                     out_channels,
-                     kernel_size=3,
-                     stride=stride,
-                     padding=dilation,
-                     groups=groups,
-                     dilation=dilation,
-                     bias=bias,
-                     **kwargs)
-
-
-def sepconv3x3(in_channels: int,
-               out_channels: int,
-               stride: int = 1,
-               groups: int = 1,
-               dilation: int = 1,
-               bias=False,
-               **kwargs) -> nn.Sequential:
-    return nn.Sequential(
-        nn.Conv2d(in_channels,
-                  in_channels,
-                  kernel_size=(1, 3),
-                  stride=stride,
-                  padding=(0, dilation),
-                  groups=groups,
-                  dilation=(1, dilation),
-                  bias=bias,
-                  **kwargs),
-        nn.Conv2d(in_channels,
-                  out_channels,
-                  kernel_size=(3, 1),
-                  stride=stride,
-                  padding=(dilation, 0),
-                  groups=groups,
-                  dilation=(dilation, 1),
-                  bias=bias,
-                  **kwargs)
-    )
-
-
-def conv_block(in_channels: int,
-               out_channels: int,
-               norm: Optional[nn.Module] = None,
-               activation: nn.Module = nn.LeakyReLU()):
-    layers = [
-        conv3x3(in_channels, out_channels),
-        norm if norm else nn.Identity(),
-        activation,
-    ]
-    return nn.Sequential(*layers)
 
 
 class CNN(nn.Module):
     def __init__(self,
+                 n_input_channels: int,
                  n_classes: int,
-                 n_features: Tuple[int],
-                 n_hidden_layers: int,
-                 n_input_channels: int = 1,
+                 n_features: Tuple[int] = (16, 32, 64, 128, 256),
+                 n_hidden_layers: int = 128,
                  dropout: float = 0.5,
                  avg_pool_sz: Tuple[int] = (1, 1),
                  init_weights: bool = True,

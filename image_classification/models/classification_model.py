@@ -5,7 +5,7 @@ import torch
 from torch import nn, optim
 
 from hooks import KeepActivations
-from layers import ResNetBlock
+from layers import ResNetBlock_fastai
 import lightning as pl
 
 

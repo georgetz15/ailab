@@ -1,5 +1,7 @@
 import torch.nn as nn
 
+from layers.convs import conv3x3, conv1x1
+
 
 def _conv(
         in_channels,
@@ -39,7 +41,7 @@ def _conv_block(
     return nn.Sequential(*layers)
 
 
-class ResNetBlock(nn.Module):
+class ResNetBlock_fastai(nn.Module):
     def __init__(self,
                  in_channels,
                  out_channels,
@@ -61,4 +63,33 @@ class ResNetBlock(nn.Module):
         idx = pool if not self.idconv else self.idconv(pool)
         convx = self.convs(x)
         y = self.activation(convx + idx)
+        return y
+
+
+class ResnetBlock(nn.Module):
+    def __init__(self, in_channels: int, out_channels: int):
+        super().__init__()
+
+        self.conv1 = conv3x3(in_channels, out_channels)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+        self.act1 = nn.LeakyReLU(inplace=True)
+
+        self.conv2 = conv3x3(out_channels, out_channels)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+        self.act2 = nn.LeakyReLU(inplace=True)
+
+        self.downsample = nn.Identity() if in_channels == out_channels else conv1x1(in_channels, out_channels)
+
+    def forward(self, x):
+        # Conv path
+        y = self.conv1(x)
+        y = self.bn1(y)
+        y = self.act1(y)
+        y = self.conv2(y)
+
+        # Output path
+        y += self.downsample(x)
+        y = self.bn2(y)
+        y = self.act2(y)
+
         return y
