@@ -48,13 +48,16 @@ class Resnet(nn.Module):
                  dropout: float = 0.5,
                  avg_pool_sz: Tuple[int] = (1, 1),
                  conv_groups: int = 1,
-                 init_weights: bool = True, ):
+                 init_weights: bool = True,
+                 use_fft_input: bool = False):
         # Initialization and validation
         super().__init__()
         if len(n_features) < 1:
             raise ValueError(f"n_features should contain at least 1 element, but has len(n_features)={len(n_features)}")
         if any(n for n in n_features if n < 1):
             raise ValueError(f"n_features should contain only positive number of features.")
+
+        self._use_fft_input = use_fft_input
 
         # Create the feature extractor
         n_layers = len(n_features)
@@ -91,6 +94,8 @@ class Resnet(nn.Module):
             self.apply(generic_init)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        in_feats = x if not self._use_fft_input else torch.fft.rfft2(x).abs()
+
         y = self.features(x)
         y = self.avgpool(y)
         y = torch.flatten(y, 1)
