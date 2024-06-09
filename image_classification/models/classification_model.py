@@ -7,6 +7,7 @@ from torch import nn, optim
 from hooks import KeepActivations
 from layers import ResNetBlock_fastai
 import lightning as pl
+from torchmetrics.classification import MulticlassRecall, MulticlassPrecision, Accuracy
 
 
 class ClassificationModel(pl.LightningModule):
@@ -21,27 +22,39 @@ class ClassificationModel(pl.LightningModule):
 
         self.save_hyperparameters()
         self._n_classes = n_classes
+        self._metrics = (["accuracy"]
+                         + [f"precision-{i}" for i in range(n_classes)]
+                         + [f"recall-{i}" for i in range(n_classes)])
+        self.accuracy = Accuracy("multiclass", num_classes=n_classes)
+        self.precision = MulticlassPrecision(num_classes=n_classes, average=None)
+        self.recall = MulticlassRecall(num_classes=n_classes, average=None)
 
     def forward(self, x):
         return self.classifier(x)
 
     def training_step(self, batch, batch_idx):
         # self._activations_hook.reset()
-
         x, y = batch
 
         preds = self.forward(x)
         if preds.shape[-1] != self._n_classes:
-            raise ValueError(f"preds.shape[-1]={preds.shape[-1]} should be equal to the number of classes {self._n_classes}")
+            raise ValueError(
+                f"preds.shape[-1]={preds.shape[-1]} should be equal to the number of classes {self._n_classes}")
         loss = nn.functional.cross_entropy(preds, y)
 
-        accuracy = (preds.argmax(-1) == y).float().mean().item()
+        # accuracy = (preds.argmax(-1) == y).float().mean().item()
 
         # for i, act in enumerate(self._activations_hook.activations):
         #     self.logger.experiment.add_histogram(f'feature_activations/{i}', act, self.global_step)
 
+        # self.log_dict({"accuracy/train": accuracy}, on_step=False, on_epoch=True)
         self.log_dict({"loss/train": loss}, on_step=False, on_epoch=True)
-        self.log_dict({"accuracy/train": accuracy}, on_step=False, on_epoch=True)
+        self.log_dict({"accuracy/train": self.accuracy(preds, y)}, on_step=False, on_epoch=True)
+        precision = self.precision(preds, y)
+        recall = self.recall(preds, y)
+        for i, (pre, rec) in enumerate(zip(precision, recall)):
+            self.log_dict({f"precision-{i}/train": pre}, on_step=False, on_epoch=True)
+            self.log_dict({f"recall-{i}/train": rec}, on_step=False, on_epoch=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -52,9 +65,17 @@ class ClassificationModel(pl.LightningModule):
         preds = self.forward(x)
         loss = nn.functional.cross_entropy(preds, y)
 
-        accuracy = (preds.argmax(-1) == y).float().mean().item()
+        # accuracy = (preds.argmax(-1) == y).float().mean().item()
+        # self.log_dict({"accuracy/val": accuracy}, on_step=False, on_epoch=True)
+
         self.log_dict({"loss/val": loss}, on_step=False, on_epoch=True)
+        accuracy = self.accuracy(preds, y)
         self.log_dict({"accuracy/val": accuracy}, on_step=False, on_epoch=True)
+        precision = self.precision(preds, y)
+        recall = self.recall(preds, y)
+        for i, (pre, rec) in enumerate(zip(precision, recall)):
+            self.log_dict({f"precision-{i}/val": pre}, on_step=False, on_epoch=True)
+            self.log_dict({f"recall-{i}/val": rec}, on_step=False, on_epoch=True)
         self.log("hp_metric", accuracy, on_step=False, on_epoch=True)
 
         return loss
@@ -94,12 +115,15 @@ class ClassificationModel(pl.LightningModule):
     def on_fit_start(self):
         tb = self.logger.experiment  # noqa
 
-        layout_scalar_names_losses = [r"loss/train", "loss/val"]
+        tbmetrics = {
+            f"loss": ["Multiline", [r"loss/train", "loss/val"]],
+        }
+        tbmetrics.update({
+            metric: ["Multiline", [f"{metric}/train", f"{metric}/val"]]
+            for metric in self._metrics
+        })
         layout = {
-            self.__class__.__name__: {
-                f"loss": ["Multiline", layout_scalar_names_losses],
-                f"accuracy": ["Multiline", ["accuracy/train", "accuracy/val"]],
-            }
+            self.__class__.__name__: tbmetrics
         }
 
         tb.add_custom_scalars(layout)
