@@ -42,12 +42,9 @@ class ClassificationModel(pl.LightningModule):
                 f"preds.shape[-1]={preds.shape[-1]} should be equal to the number of classes {self._n_classes}")
         loss = nn.functional.cross_entropy(preds, y)
 
-        # accuracy = (preds.argmax(-1) == y).float().mean().item()
-
         # for i, act in enumerate(self._activations_hook.activations):
         #     self.logger.experiment.add_histogram(f'feature_activations/{i}', act, self.global_step)
 
-        # self.log_dict({"accuracy/train": accuracy}, on_step=False, on_epoch=True)
         self.log_dict({"loss/train": loss}, on_step=False, on_epoch=True)
         self.log_dict({"accuracy/train": self.accuracy(preds, y)}, on_step=False, on_epoch=True)
         precision = self.precision(preds, y)
@@ -64,9 +61,6 @@ class ClassificationModel(pl.LightningModule):
 
         preds = self.forward(x)
         loss = nn.functional.cross_entropy(preds, y)
-
-        # accuracy = (preds.argmax(-1) == y).float().mean().item()
-        # self.log_dict({"accuracy/val": accuracy}, on_step=False, on_epoch=True)
 
         self.log_dict({"loss/val": loss}, on_step=False, on_epoch=True)
         accuracy = self.accuracy(preds, y)
