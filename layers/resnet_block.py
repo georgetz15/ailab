@@ -67,14 +67,14 @@ class ResNetBlock_fastai(nn.Module):
 
 
 class ResnetBlock(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, in_channels: int, out_channels: int, groups: int = 1):
         super().__init__()
 
-        self.conv1 = conv3x3(in_channels, out_channels)
+        self.conv1 = conv3x3(in_channels, out_channels, groups=groups)
         self.bn1 = nn.BatchNorm2d(out_channels)
         self.act1 = nn.LeakyReLU(inplace=True)
 
-        self.conv2 = conv3x3(out_channels, out_channels)
+        self.conv2 = conv3x3(out_channels, out_channels, groups=groups)
         self.bn2 = nn.BatchNorm2d(out_channels)
         self.act2 = nn.LeakyReLU(inplace=True)
 

@@ -47,6 +47,7 @@ class Resnet(nn.Module):
                  n_hidden_layers: int = 128,
                  dropout: float = 0.5,
                  avg_pool_sz: Tuple[int] = (1, 1),
+                 conv_groups: int = 1,
                  init_weights: bool = True, ):
         # Initialization and validation
         super().__init__()
@@ -61,10 +62,11 @@ class Resnet(nn.Module):
         for i in range(n_layers - 1):
             n_in = n_features[i] if i > 0 else n_input_channels
             n_out = n_features[i + 1]
+            groups = conv_groups if i > 0 else 1
 
             # Conv block
             features.extend([
-                ResnetBlock(n_in, n_out),
+                ResnetBlock(n_in, n_out, groups=groups),
                 nn.BatchNorm2d(n_out),
                 nn.LeakyReLU(inplace=True),
             ])
