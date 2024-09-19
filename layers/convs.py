@@ -52,3 +52,7 @@ def sepconv3x3(in_channels: int,
 def conv1x1(in_channels: int,
             out_channels: int, ) -> nn.Conv2d:
     return nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+
+
+def depthwise_conv3x3(n_channels: int, ) -> nn.Conv2d:
+    return conv3x3(n_channels, n_channels, groups=n_channels)
